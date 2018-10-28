@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Áreas de Tu Organización QI
  * Plugin URI:        https://github.com/NTHINGs/areasorg-qi
- * Description:       Plugin hecho a la medida para manejar el cuestionario de calidad de vida laboral del Instituto QI.
+ * Description:       Plugin hecho a la medida para manejar las areas de organizaciones del Instituto QI.
  * Version:           1.0.0
  * Author:            Mauricio Martinez
  * Author URI:        https://github.com/NTHINGs

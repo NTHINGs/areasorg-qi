@@ -3,24 +3,21 @@
  * Tabla para visualizar los resultados
  *
  *
- * @package	 resiliencia-qi
+ * @package	 areasorg-qi
  * @since    1.0.0
  */
 if ( ! class_exists( 'WP_List_Table' ) ) {
 	require_once( ABSPATH . 'wp-admin/includes/class-wp-list-table.php' );
 }
-$org_id = NULL;
 $search = '';
-class Areas_Org_Table extends WP_List_Table {
+class Orgs_Areas_Table extends WP_List_Table {
 
-	public function __construct($search_string ='', $hash) {
-		global $org_id;
-		global $search;
-		$org_id = $hash;
+    public function __construct($search_string ='') {
+        global $search;
         $search = $search_string;
 		parent::__construct( array(
-            'singular'=> 'Área', //Singular label
-            'plural' => 'Áreas', //plural label, also this well be one of the table css class
+            'singular'=> 'Organización', //Singular label
+            'plural' => 'Organizaciones', //plural label, also this well be one of the table css class
             'ajax'  => true //We won't support Ajax for this table
         ) );
 	}
@@ -30,7 +27,6 @@ class Areas_Org_Table extends WP_List_Table {
      * @return Void
      */
     public function prepare_items() {
-		global $org_id;
         global $search;
 		// Construir columnas
         $columns = $this->get_columns();
@@ -64,8 +60,8 @@ class Areas_Org_Table extends WP_List_Table {
      */
     public function get_columns() {
         $columns = array(
-            'id'           => 'ID',
 			'nombre'       => 'Nombre',
+			'id'           => 'ID',
 		);
 
         return $columns;
@@ -87,8 +83,8 @@ class Areas_Org_Table extends WP_List_Table {
      */
     public function get_sortable_columns() {
         return array(
-			'id' => array( 'id', true ),
-			'nombre' => array('nombre', false)
+			'nombre' => array('nombre', true),
+			'id' => array( 'id', false ),
 		);
 	}
 	
@@ -98,13 +94,44 @@ class Areas_Org_Table extends WP_List_Table {
      * @return Array
      */
     private function table_data($search='') {
-        global $wpdb, $org_id;
-		$sql = "SELECT id, nombre FROM {$wpdb->prefix}areasorgareas WHERE organizacion = '{$org_id}'";
-		if(!empty($search)){
-			$sql .= " AND nombre LIKE '%{$search}%'";
-		}
+		global $wpdb;
 
-		return $wpdb->get_results( $sql, 'ARRAY_A' );
+		if(!empty($search)){
+			$args = array(
+				'search'         => '*'.esc_attr( $search ).'*',
+				'search_columns' => array( 'display_name' )
+			);
+			$query = new WP_User_Query( $args );
+			$data = array();
+			$index = 0;
+			foreach ( $query->get_results() as $user ) {
+				$hash = get_user_meta($user->ID, 'hash', true);
+				if($hash) {
+					$data[$index]['nombre'] = $user->display_name;
+					$data[$index]['id'] = $hash;
+					$index++;
+				}
+			}
+			return $data;
+		} else {
+			$args = array(
+				'search'         => '*'.esc_attr( $search ).'*',
+				'search_columns' => array( 'display_name' )
+			);
+			$query = new WP_User_Query( $args );
+			$data = array();
+			$index = 0;
+			foreach ( $query->get_results() as $user ) {
+				$hash = get_user_meta($user->ID, 'hash', true);
+				if($hash) {
+					$data[$index]['nombre'] = $user->display_name;
+					$data[$index]['id'] = $hash;
+					$index++;
+				}
+			}
+			return $data;
+		}
+		
 	}
 	
 	/**
@@ -112,13 +139,11 @@ class Areas_Org_Table extends WP_List_Table {
      *
      * @return Mixed
      */
-	function column_id( $item ) {
-		global $org_id;
-		$title = '<strong>' . $item['id'] . '</strong>';
+	function column_nombre( $item ) {
+		$title = '<strong>' . $item['nombre'] . '</strong>';
 	  
 		$actions = [
-            'edit'    => sprintf( '<a href="?page=%s&action=%s&registro=%s&org_id=%s&noheader=true">Ver</a>', $_REQUEST['page'], 'edit', $item['id'], $org_id ),
-			'delete'  => sprintf( '<a href="?page=%s&action=%s&registro=%s&org_id=%s&noheader=true">Eliminar</a>', $_REQUEST['page'], 'delete', $item['id'], $org_id )
+			'view'    => sprintf( '<a href="?page=%s&action=%s&org_id=%s&noheader=true">Ver</a>', $_REQUEST['page'], 'view', $item['id'] ),
 		];
 	  
 		return $title . $this->row_actions( $actions );
@@ -157,7 +182,7 @@ class Areas_Org_Table extends WP_List_Table {
         if(!empty($_GET['order'])) {
             $order = $_GET['order'];
         }
-        $result = $a[$orderby] - $b[$orderby];
+        $result = strnatcmp($a[$orderby], $b[$orderby]);
         if($order === 'asc') {
             return $result;
         }
@@ -172,25 +197,10 @@ class Areas_Org_Table extends WP_List_Table {
 	public function no_items() {
 		echo 'No hay resultados.';
 	}
-
-	public static function delete_registro( $id ) {
-		global $wpdb;
-		
-		$wpdb->delete(
-			"{$wpdb->prefix}areasorgareas",
-			[ 'id' => $id ],
-			[ '%d' ]
-		);
-	}
 	
 	public function process_bulk_action() {
-		if ( 'edit' === $this->current_action() ) {
-            $url = add_query_arg( 'area_id', $_GET['registro'], admin_url('admin.php?page=areasorg-qi-adminpage-editar') );
-			wp_redirect(add_query_arg( 'org_id', $_GET['org_id'], $url ));
-			exit;
-		}
-		if ( 'delete' === $this->current_action() ) {
-			self::delete_registro( absint( $_GET['registro'] ) );
+		//Detect when a bulk action is being triggered...
+		if ( 'view' === $this->current_action() ) {
 			wp_redirect(add_query_arg( 'org_id', $_GET['org_id'], admin_url('admin.php?page=areasorg-qi-adminpage') ));
 			exit;
 		}
